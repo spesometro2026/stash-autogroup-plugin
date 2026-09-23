@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mockup</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #15161a;
+    color: #eee;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .section-label {
+    padding: 1rem 1.2rem 0.4rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+  }
+
+  /* -------- plugin card (Settings > Plugins) -------- */
+  .plugin-card {
+    margin: 0.6rem 1.2rem 1.4rem;
+    background: #1c1d22;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    max-width: 640px;
+  }
+  .plugin-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .plugin-card-head h4 { margin: 0; font-size: 1rem; }
+  .plugin-card-version { font-size: 0.75rem; opacity: 0.5; }
+  .plugin-card-desc { margin: 0.4rem 0 0.9rem; font-size: 0.85rem; opacity: 0.75; line-height: 1.4; }
+
+  .field { margin-bottom: 0.8rem; }
+  .field label { display: block; font-size: 0.8rem; opacity: 0.75; margin-bottom: 0.25rem; }
+  .field .hint { font-size: 0.72rem; opacity: 0.5; margin-top: 0.2rem; }
+  .toggle-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+  .switch {
+    width: 34px; height: 18px; border-radius: 999px; background: #3a5f8a;
+    position: relative; flex: 0 0 auto;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px;
+    border-radius: 50%; background: #fff;
+  }
+  .switch.off { background: rgba(255,255,255,0.15); }
+  .switch.off::after { right: auto; left: 2px; }
+
+  textarea.rules-box {
+    width: 100%; min-height: 46px; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #ddd;
+    font-family: ui-monospace, monospace; font-size: 0.75rem; padding: 0.4rem 0.5rem;
+  }
+
+  .run-btn {
+    background: #3a5f8a; color: #fff; border: none; border-radius: 4px;
+    padding: 0.4rem 1rem; font-size: 0.85rem; margin-top: 0.4rem;
+  }
+
+  /* -------- log panel -------- */
+  .log-panel {
+    margin: 0.6rem 1.2rem 1.4rem;
+    background: #0e0f12;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    max-width: 720px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 0.72rem;
+    line-height: 1.7;
+  }
+  .log-line { white-space: pre-wrap; }
+  .log-time { opacity: 0.4; }
+  .log-tag { opacity: 0.6; }
+  .log-line.summary { color: #7ecb7e; margin-top: 0.4rem; }
+</style>
+</head>
+<body>
+
+  <div class="section-label">Settings → Plugins</div>
+  <div class="plugin-card">
+    <div class="plugin-card-head">
+      <h4>Auto Group</h4>
+      <span class="plugin-card-version">v1.0.0</span>
+    </div>
+    <p class="plugin-card-desc">Automatically creates and assigns Stash Groups from customizable filename rules (regex).</p>
+
+    <div class="field">
+      <label>Rules (JSON)</label>
+      <textarea class="rules-box" readonly>[]  (empty = use built-in default rules)</textarea>
+      <div class="hint">JSON array of {"pattern": regex, "group": template}. See README for syntax.</div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="switch"></div>
+      <span>Skip scenes that already have a group</span>
+    </div>
+    <div class="toggle-row">
+      <div class="switch"></div>
+      <span>Dry run (log only, write nothing)</span>
+    </div>
+
+    <button class="run-btn">▶ Run</button>
+  </div>
+
+  <div class="section-label">Settings → Logs (sample dry-run output, illustrative)</div>
+  <div class="log-panel">
+    <div class="log-line"><span class="log-time">09:41:02</span> <span class="log-tag">[Plugin / Auto Group]</span> (dry-run) scene 1201 'Sample Show - Episode 1.mp4' -&gt; would create group 'Sample Show' (scene_index=1)</div>
+    <div class="log-line"><span class="log-time">09:41:02</span> <span class="log-tag">[Plugin / Auto Group]</span> (dry-run) scene 1202 'Sample Show - Episode 2.mp4' -&gt; would create group 'Sample Show' (scene_index=2)</div>
+    <div class="log-line"><span class="log-time">09:41:02</span> <span class="log-tag">[Plugin / Auto Group]</span> (dry-run) scene 1189 'Weekend Trip - Part 3.mp4' -&gt; would add to group 'Weekend Trip' (scene_index=3)</div>
+    <div class="log-line"><span class="log-time">09:41:03</span> <span class="log-tag">[Plugin / Auto Group]</span> (dry-run) scene 0847 'One-off Title Scene 2. Performer.mp4' -&gt; single match, no existing group, skipped</div>
+    <div class="log-line summary"><span class="log-time">09:41:03</span> <span class="log-tag">[Plugin / Auto Group]</span> done: 3 scenes assigned (1 new group), 1 single match skipped, 640 already grouped, 7690 checked, no rule matched (dry-run: nothing written)</div>
+  </div>
+
+</body>
+</html>
