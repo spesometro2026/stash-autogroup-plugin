@@ -15,11 +15,27 @@ import sys
 import stashapi.log as log
 from stashapi.stashapp import StashInterface
 
+# Separators accepted before/after a keyword: space, underscore, hyphen, en/em dash, "(".
+SEP = r"[\s_\-\u2013\u2014(]+"
+
 DEFAULT_RULES = [
+    # "Title Day 3 (Scene 2)" - the day is the group, the scene number is the position inside it.
+    {
+        "pattern": r"^(?P<series>.+?)" + SEP + r"Day[\s_.]*#?[\s_.]*(?P<day>\d+)[\s_.\-\u2013\u2014(]*Scene[\s_.]*#?[\s_.]*(?P<index>\d+)\)?",
+        "group": "{series} - Day {day}",
+    },
+    # "Title - Scene 1 - Part 3 - Subtitle" - two-level numbering. Each scene becomes its own group
+    # ("Title - Scene 1") and the part number is the position inside it, so parts of different scenes
+    # never share an index.
+    {
+        "pattern": r"^(?P<series>.+?)" + SEP + r"Scene[\s_.]*#?[\s_.]*(?P<scene>\d+)\b.*?"
+                   + SEP + r"(?:Part|Pt)[\s_.]*#?[\s_.]*(?P<index>\d+)\)?",
+        "group": "{series} - Scene {scene}",
+    },
     # "Title - Episode 4" / "Title_Part_6" / "Title (Ep. 1)" / "Title Day 2" / "Title Scene 3" -
     # flexible separators before/after the keyword (space, dash, underscore, dot, parenthesis).
     {
-        "pattern": r"^(?P<series>.+?)[\s_\-(]+(?:Ep(?:isode)?|Part|Pt|Scene|Day)[\s_.]*#?[\s_.]*(?P<index>\d+)\)?",
+        "pattern": r"^(?P<series>.+?)" + SEP + r"(?:Ep(?:isode)?|Part|Pt|Scene|Day)[\s_.]*#?[\s_.]*(?P<index>\d+)\)?",
         "group": "{series}",
     },
     # "Title 1 feat. Performer" - bare number immediately before "feat." as the anchor.
@@ -28,6 +44,9 @@ DEFAULT_RULES = [
         "group": "{series}",
     },
 ]
+
+# Characters trimmed from both ends of a generated group name (separators left over by the pattern).
+NAME_TRIM = " \t_-\u2013\u2014("
 
 PER_PAGE = 100
 
@@ -46,13 +65,17 @@ def load_settings(stash):
                 log.warning("[AutoGroup] 'rules' non è una lista JSON valida, uso il default")
         except Exception as e:
             log.error(f"[AutoGroup] JSON delle regole non valido, uso il default: {e}")
+    return compile_rules(rules), bool(settings["onlyUngrouped"]), bool(settings["dryRun"])
+
+
+def compile_rules(rules):
     compiled = []
     for r in rules:
         try:
             compiled.append({"pattern": re.compile(r["pattern"], re.IGNORECASE), "group": r["group"]})
         except Exception as e:
             log.error(f"[AutoGroup] regola scartata (pattern non valido): {r} -> {e}")
-    return compiled, bool(settings["onlyUngrouped"]), bool(settings["dryRun"])
+    return compiled
 
 
 def find_group(stash, name, cache):
@@ -86,12 +109,14 @@ def match_rule(rules, path):
         if not m:
             continue
         gd = m.groupdict()
+        fmt = {k: ("" if v is None else v) for k, v in gd.items()}
         try:
-            group_name = rule["group"].format(**gd)
+            group_name = rule["group"].format(**fmt)
         except KeyError as e:
             log.error(f"[AutoGroup] placeholder {e} assente nel match di '{rule['group']}' su '{path}'")
             continue
-        if not group_name.strip():
+        group_name = group_name.strip(NAME_TRIM)
+        if not group_name:
             continue
         scene_index = None
         if gd.get("index") is not None:
@@ -99,7 +124,7 @@ def match_rule(rules, path):
                 scene_index = int(gd["index"])
             except ValueError:
                 pass
-        return group_name.strip(), scene_index
+        return group_name, scene_index
     return None, None
 
 
@@ -120,7 +145,7 @@ def run(stash):
             """query($page:Int!, $per:Int!){
                 findScenes(filter:{page:$page, per_page:$per, sort:"id", direction:ASC}) {
                   count
-                  scenes { id groups { group { id } } files { path } }
+                  scenes { id groups { group { id } scene_index } files { path } }
                 }
             }""",
             {"page": page, "per": PER_PAGE},
@@ -184,7 +209,7 @@ def run(stash):
                 gid = create_group(stash, group_name, group_cache)
                 created_groups += 1
             keep = [
-                {"group_id": g["group"]["id"], "scene_index": None}
+                {"group_id": g["group"]["id"], "scene_index": g.get("scene_index")}
                 for g in item["existing_groups"]
                 if g["group"]["id"] != gid
             ]

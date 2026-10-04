@@ -23,8 +23,11 @@ that were never grouped, without doing it by hand.
 
 ## Default rules
 
-Two rules ship built-in and cover most `Title - Episode 4`, `Title_Part_6`, `Title (Ep. 1)`,
-`Title Day 2`, `Title Scene 3`, `Title 1 feat. Performer` style filenames. They're deliberately
+Built-in rules cover most `Title - Episode 4`, `Title_Part_6`, `Title (Ep. 1)`,
+`Title Day 2`, `Title Scene 3`, `Title 1 feat. Performer` style filenames, plus two-level numbering:
+`Title - Scene 1 - Part 3` becomes the group `Title - Scene 1` with position 3, and
+`Title Day 3 (Scene 2)` becomes the group `Title - Day 3` with position 2. Separators can be
+spaces, `_`, `-`, en/em dashes or `(`; leftover separators at the ends of a group name are trimmed. They're deliberately
 conservative: filenames that only carry a date, or a bare number with no keyword next to it
 (`Doubled 1 - Studio - Performer.mp4`), are left alone rather than guessed at — write a custom
 rule for those if you want them covered too (see **Settings** below).
