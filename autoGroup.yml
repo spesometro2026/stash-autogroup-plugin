@@ -1,6 +1,6 @@
 name: Auto Group
 description: Automatically creates and assigns Stash Groups from customizable filename rules (regex).
-version: 1.0.1
+version: 1.0.2
 url: https://github.com/spesometro2026/stash-autogroup-plugin
 exec:
   - python

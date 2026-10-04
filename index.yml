@@ -2,7 +2,7 @@
   name: Auto Group
   metadata:
     description: Automatically creates and assigns Stash Groups from customizable filename rules (regex).
-  version: 1.0.1
-  date: "2026-10-04 20:29:55"
+  version: 1.0.2
+  date: "2026-10-04 21:01:22"
   path: autoGroup.zip
-  sha256: fbe594033e325eb6adebbf7eff61760eec3215d1e7589f66be098c35f1d2253c
+  sha256: a9e4b329e0c267803b7bd3184f528819f891109f6d0655388ac479e5def3e408

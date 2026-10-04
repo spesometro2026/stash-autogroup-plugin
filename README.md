@@ -18,6 +18,14 @@ that were never grouped, without doing it by hand.
   A single match only joins a Group that *already exists* with that exact name (e.g. one more
   episode of a series you already grouped); it's otherwise skipped. This keeps the tool from
   creating one-scene "groups" out of unrelated titles that just happen to contain a number.
+- **Similar names join the existing group.** A group name taken from a filename often differs slightly from an
+  existing group's name: other capitalisation (`KlikKlok` / `Klikklok`), different spacing
+  (`HookupHotshot` / `Hookup Hotshot`), punctuation (`Non Judgement` / `Non-Judgement`) or a studio
+  prefix (`Studio - Show` / `Show`). Names are compared ignoring case and punctuation, and the part after the first
+  ` - ` is tried too (when it has at least 6 letters/digits), so such scenes **join the existing group instead of
+  splitting the series into a near-duplicate**. This also lets a single new episode join a group whose name only
+  looks similar. If more than one existing group looks equally similar, nothing is joined and the log says so.
+  Spelling variants of a *new* group within the same run are merged into one group.
 - Scenes that already belong to a group are left alone by default, so re-running the task only
   ever picks up newly added scenes.
 

@@ -78,8 +78,9 @@ class DefaultRules(unittest.TestCase):
 class FakeStash:
     """Serves one page of scenes, records mutations; lets run() execute without Stash."""
 
-    def __init__(self, scenes, settings):
+    def __init__(self, scenes, settings, existing=None):
         self.scenes, self.settings, self.created, self.updated = scenes, settings, [], []
+        self.existing = existing or []   # [{"id", "name"}] groups already in the library
 
     def get_configuration(self):
         return {"plugins": {"autoGroup": self.settings}}
@@ -88,7 +89,10 @@ class FakeStash:
         if "findScenes" in query:
             return {"findScenes": {"count": len(self.scenes), "scenes": self.scenes if variables["page"] == 1 else []}}
         if "findGroups" in query:
-            return {"findGroups": {"groups": []}}
+            if variables and "f" in variables:   # exact-name lookup
+                wanted = variables["f"]["name"]["value"]
+                return {"findGroups": {"groups": [g for g in self.existing if g["name"] == wanted]}}
+            return {"findGroups": {"groups": list(self.existing)}}   # full listing
         if "groupCreate" in query:
             self.created.append(variables["input"]["name"])
             return {"groupCreate": {"id": f"g{len(self.created)}"}}
@@ -128,6 +132,78 @@ class RunBehaviour(unittest.TestCase):
         autoGroup.run(st)
         first = [u for u in st.updated if u["id"] == "1"][0]["groups"]
         self.assertIn({"group_id": "77", "scene_index": 5}, first)
+
+
+class SimilarGroupNames(unittest.TestCase):
+    """Scenes must join an existing group whose name only differs by case, spacing or a studio prefix."""
+
+    def run_plugin(self, scenes, existing):
+        st = FakeStash(scenes, {"dryRun": False}, existing)
+        autoGroup.run(st)
+        return st
+
+    def joined(self, st):
+        return sorted((u["id"], u["groups"][-1]["group_id"], u["groups"][-1]["scene_index"]) for u in st.updated)
+
+    def test_studio_prefix_joins_existing_group(self):
+        existing = [{"id": "245", "name": "Elle Mckenzie In The Evaluation"}]
+        st = self.run_plugin([
+            scene("1", "/x/Futile Struggles - Elle Mckenzie In The Evaluation - Episode 1.mp4"),
+            scene("10", "/x/Futile Struggles - Elle Mckenzie In The Evaluation - Episode 10.mp4"),
+        ], existing)
+        self.assertEqual(st.created, [])
+        self.assertEqual(self.joined(st), [("1", "245", 1), ("10", "245", 10)])
+
+    def test_different_capitalisation_joins_existing_group(self):
+        existing = [{"id": "18", "name": "Klikklok Challenge Goes Awry For Two Brats"}]
+        st = self.run_plugin([
+            scene("1", "/x/FutileStruggles - KlikKlok Challenge Goes Awry For Two Brats - Episode 2.mp4"),
+            scene("2", "/x/FutileStruggles - KlikKlok Challenge Goes Awry For Two Brats - Episode 15.mp4"),
+        ], existing)
+        self.assertEqual(st.created, [])
+        self.assertEqual(self.joined(st), [("1", "18", 2), ("2", "18", 15)])
+
+    def test_a_single_scene_with_a_similar_name_joins_instead_of_being_dropped(self):
+        existing = [{"id": "245", "name": "Elle Mckenzie In The Evaluation"}]
+        st = self.run_plugin([scene("1", "/x/Futile Struggles - Elle Mckenzie In The Evaluation - Episode 3.mp4")], existing)
+        self.assertEqual(self.joined(st), [("1", "245", 3)])
+
+    def test_spelling_variants_in_the_same_run_make_one_new_group(self):
+        st = self.run_plugin([
+            scene("1", "/x/HookupHotshot - Episode 1 - A.mp4"),
+            scene("2", "/x/Hookup Hotshot - Episode 2 - B.mp4"),
+            scene("3", "/x/HookupHotshot - Episode 3 - C.mp4"),
+        ], [])
+        self.assertEqual(len(st.created), 1)
+        self.assertEqual(st.created, ["HookupHotshot"])   # most frequent spelling wins
+        self.assertEqual(len({u["groups"][-1]["group_id"] for u in st.updated}), 1)
+
+    def test_ambiguous_similar_groups_are_not_joined(self):
+        existing = [{"id": "1", "name": "Show Name"}, {"id": "2", "name": "show name"}]
+        st = self.run_plugin([scene("1", "/x/Studio - Show Name - Episode 1.mp4")], existing)
+        self.assertEqual((st.created, st.updated), ([], []))
+
+    def test_short_tail_after_prefix_is_not_used_for_matching(self):
+        existing = [{"id": "9", "name": "Part"}]
+        st = self.run_plugin([scene("1", "/x/Studio - Part - Episode 1.mp4")], existing)
+        self.assertEqual((st.created, st.updated), ([], []))
+
+    def test_unrelated_names_still_create_a_new_group(self):
+        existing = [{"id": "9", "name": "Completely Different Series"}]
+        st = self.run_plugin([scene("1", "/x/Brand New Show - Episode 1.mp4"), scene("2", "/x/Brand New Show - Episode 2.mp4")], existing)
+        self.assertEqual(st.created, ["Brand New Show"])
+
+    def test_dry_run_reports_the_existing_group_name(self):
+        lines = []
+        autoGroup.log.info = lines.append
+        try:
+            st = FakeStash([scene("1", "/x/Studio - Show Name - Episode 1.mp4"), scene("2", "/x/Studio - Show Name - Episode 2.mp4")],
+                           {"dryRun": True}, [{"id": "5", "name": "Show Name"}])
+            autoGroup.run(st)
+        finally:
+            autoGroup.log.info = lambda *a, **k: None
+        self.assertTrue(any("aggiungerebbe a gruppo 'Show Name'" in l for l in lines), lines)
+        self.assertEqual((st.created, st.updated), ([], []))
 
 
 if __name__ == "__main__":
